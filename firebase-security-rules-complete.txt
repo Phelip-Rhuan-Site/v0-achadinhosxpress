@@ -1,0 +1,80 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Função para verificar se o usuário é admin
+    // Aceita "ADM Master" ou qualquer role que contenha "ADM"
+    function isAdmin() {
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/invites/$(request.auth.token.email)) &&
+             (get(/databases/$(database)/documents/invites/$(request.auth.token.email)).data.role == 'ADM Master' ||
+              get(/databases/$(database)/documents/invites/$(request.auth.token.email)).data.role.matches('.*ADM.*'));
+    }
+
+    // Função para verificar se é o próprio usuário
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Produtos: leitura pública, escrita só admin
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Meta (configurações públicas como contato, horários, etc): leitura pública, escrita só admin
+    match /meta/{document} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Configurações internas: apenas admin
+    match /config/{document} {
+      allow read, write: if isAdmin();
+    }
+
+    // Usuários: cada usuário pode ler e escrever seus próprios dados
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+      allow read: if isAdmin(); // Admin pode ver todos os usuários
+    }
+
+    // Convites e roles: apenas admin
+    match /invites/{email} {
+      allow read, write: if isAdmin();
+    }
+
+    // Pedidos: usuários podem ver seus próprios pedidos, admin vê todos
+    match /orders/{orderId} {
+      allow read: if isAdmin() || 
+                     (request.auth != null && resource.data.userId == request.auth.uid);
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Carrinho: usuários podem gerenciar seu próprio carrinho
+    match /carts/{userId} {
+      allow read, write: if isOwner(userId);
+      allow read: if isAdmin(); // Admin pode ver todos os carrinhos
+    }
+
+    // Categorias: leitura pública, escrita só admin
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Avaliações: leitura pública, usuários autenticados podem criar suas próprias
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin() || 
+                               (request.auth != null && resource.data.userId == request.auth.uid);
+    }
+
+    // Bloquear acesso a qualquer outra coleção não especificada
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,78 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/invites/$(request.auth.token.email)) &&
+             (get(/databases/$(database)/documents/invites/$(request.auth.token.email)).data.role == 'ADM Master' ||
+              get(/databases/$(database)/documents/invites/$(request.auth.token.email)).data.role == 'admin');
+    }
+
+    // Products: public read, admin write
+    match /products/{productId} {
+      allow read: if true;
+      allow write, delete: if isAdmin();
+    }
+
+    // Categories: public read, admin write
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write, delete: if isAdmin();
+    }
+
+    // Meta (contact info, site config): public read, admin write
+    match /meta/{document} {
+      allow read: if true;
+      allow write, delete: if isAdmin();
+    }
+
+    // Config (internal settings): admin only
+    match /config/{document} {
+      allow read, write, delete: if isAdmin();
+    }
+
+    // Invites (admin management): 
+    // - Users can read their own invite to check role
+    // - Admins can read all invites to manage admin list
+    // - Only admins can write/delete
+    match /invites/{email} {
+      allow read: if request.auth != null && 
+                     (request.auth.token.email == email || isAdmin());
+      allow write, delete: if isAdmin();
+    }
+
+    // Users: users can read/write their own data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow delete: if isAdmin();
+    }
+
+    // Orders: users can read their own orders, admins can read all
+    match /orders/{orderId} {
+      allow read: if request.auth != null && 
+                     (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if request.auth != null && request.data.userId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
+    // Cart: users can manage their own cart
+    match /cart/{userId} {
+      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Reviews: authenticated users can write, everyone can read
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+      allow delete: if isAdmin() || 
+                       (request.auth != null && resource.data.userId == request.auth.uid);
+    }
+
+    // Block access to any other collections not explicitly defined
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
