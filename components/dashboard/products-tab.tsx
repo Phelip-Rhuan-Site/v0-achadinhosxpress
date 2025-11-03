@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore"
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
-import { db, storage } from "@/lib/firebase/config"
+import { db } from "@/lib/firebase/config"
 import { useAuth } from "@/lib/contexts/auth-context"
 import type { Product } from "@/lib/types/product"
 import { Button } from "@/components/ui/button"
@@ -46,6 +45,46 @@ export function ProductsTab() {
     }
   }
 
+  const convertImageToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      // Limit to 2MB per image for products (larger than config because products need quality)
+      if (file.size > 2 * 1024 * 1024) {
+        reject(new Error(`Imagem "${file.name}" muito grande. Máximo 2MB por imagem.`))
+        return
+      }
+
+      if (!file.type.startsWith("image/")) {
+        reject(new Error(`Arquivo "${file.name}" deve ser uma imagem.`))
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = () => reject(new Error(`Erro ao ler arquivo "${file.name}".`))
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const convertVideoToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      // Limit to 5MB for videos
+      if (file.size > 5 * 1024 * 1024) {
+        reject(new Error(`Vídeo "${file.name}" muito grande. Máximo 5MB.`))
+        return
+      }
+
+      if (!file.type.startsWith("video/")) {
+        reject(new Error(`Arquivo "${file.name}" deve ser um vídeo.`))
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = () => reject(new Error(`Erro ao ler vídeo "${file.name}".`))
+      reader.readAsDataURL(file)
+    })
+  }
+
   const handleSaveProduct = async (productData: Partial<Product>, images: File[], video: File | null) => {
     console.log("[v0] handleSaveProduct started")
     console.log("[v0] Product data:", productData)
@@ -53,35 +92,35 @@ export function ProductsTab() {
     console.log("[v0] Video:", video ? "yes" : "no")
 
     try {
-      // Upload images
       const imageUrls: string[] = []
 
       if (images.length > 0) {
-        console.log("[v0] Uploading images...")
+        console.log("[v0] Converting images to Base64...")
         for (let i = 0; i < images.length; i++) {
           const image = images[i]
-          console.log(`[v0] Uploading image ${i + 1}/${images.length}: ${image.name}`)
+          console.log(`[v0] Converting image ${i + 1}/${images.length}: ${image.name}`)
 
-          const timestamp = Date.now()
-          const imageRef = ref(storage, `products/${timestamp}_${image.name}`)
-
-          await uploadBytes(imageRef, image)
-          const url = await getDownloadURL(imageRef)
-          imageUrls.push(url)
-
-          console.log(`[v0] Image ${i + 1} uploaded: ${url}`)
+          try {
+            const base64 = await convertImageToBase64(image)
+            imageUrls.push(base64)
+            console.log(`[v0] Image ${i + 1} converted successfully`)
+          } catch (conversionError: any) {
+            console.error(`[v0] Error converting image ${i + 1}:`, conversionError)
+            throw new Error(conversionError.message)
+          }
         }
       }
 
-      // Upload video if exists
       let videoUrl: string | undefined
       if (video) {
-        console.log("[v0] Uploading video...")
-        const timestamp = Date.now()
-        const videoRef = ref(storage, `products/videos/${timestamp}_${video.name}`)
-        await uploadBytes(videoRef, video)
-        videoUrl = await getDownloadURL(videoRef)
-        console.log("[v0] Video uploaded:", videoUrl)
+        console.log("[v0] Converting video to Base64...")
+        try {
+          videoUrl = await convertVideoToBase64(video)
+          console.log("[v0] Video converted successfully")
+        } catch (conversionError: any) {
+          console.error("[v0] Error converting video:", conversionError)
+          throw new Error(conversionError.message)
+        }
       }
 
       // Prepare product payload
@@ -93,7 +132,7 @@ export function ProductsTab() {
         createdBy: user?.email || "unknown",
       }
 
-      console.log("[v0] Final payload:", productPayload)
+      console.log("[v0] Final payload prepared (images as Base64)")
 
       if (editingProduct) {
         // Update existing product
@@ -137,7 +176,7 @@ export function ProductsTab() {
         variant: "destructive",
       })
 
-      // throw error
+      throw error
     }
   }
 

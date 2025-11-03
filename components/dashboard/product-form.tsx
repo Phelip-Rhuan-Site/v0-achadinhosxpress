@@ -209,16 +209,14 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     setIsSubmitting(true)
 
     try {
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Timeout: operação demorou muito")), 60000) // 60 seconds
-      })
-
-      await Promise.race([onSave(formData, imageFiles, videoFile), timeoutPromise])
-
+      await onSave(formData, imageFiles, videoFile)
       console.log("[v0] onSave completed successfully")
     } catch (error) {
       console.error("[v0] Error in onSave:", error)
-      alert(error instanceof Error ? error.message : "Erro ao salvar produto. Tente novamente.")
+
+      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido ao salvar produto"
+
+      alert("Erro ao salvar produto:\n\n" + errorMessage)
     } finally {
       console.log("[v0] Resetting isSubmitting to false")
       setIsSubmitting(false)
