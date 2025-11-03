@@ -1,7 +1,17 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore"
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+  query,
+  where,
+} from "firebase/firestore"
 import { db } from "@/lib/firebase/config"
 import { useAuth } from "@/lib/contexts/auth-context"
 import type { Product } from "@/lib/types/product"
@@ -85,6 +95,27 @@ export function ProductsTab() {
     })
   }
 
+  const generatePostingCode = async (): Promise<string> => {
+    // Generate 8-digit code: timestamp (6 digits) + random (2 digits)
+    const timestamp = Date.now().toString().slice(-6)
+    const random = Math.floor(Math.random() * 100)
+      .toString()
+      .padStart(2, "0")
+    const code = timestamp + random
+
+    // Verify uniqueness (very unlikely to collide, but safe)
+    const productsRef = collection(db, "products")
+    const q = query(productsRef, where("codigoPostagem", "==", code))
+    const snapshot = await getDocs(q)
+
+    if (!snapshot.empty) {
+      // If collision (extremely rare), generate again
+      return generatePostingCode()
+    }
+
+    return code
+  }
+
   const handleSaveProduct = async (productData: Partial<Product>, images: File[], video: File | null) => {
     console.log("[v0] handleSaveProduct started")
     console.log("[v0] Product data:", productData)
@@ -123,11 +154,19 @@ export function ProductsTab() {
         }
       }
 
+      let codigoPostagem = productData.codigoPostagem
+      if (!editingProduct && !codigoPostagem) {
+        console.log("[v0] Generating posting code...")
+        codigoPostagem = await generatePostingCode()
+        console.log("[v0] Generated posting code:", codigoPostagem)
+      }
+
       // Prepare product payload
       const productPayload = {
         ...productData,
         images: imageUrls.length > 0 ? imageUrls : productData.images || [],
-        video: videoUrl || productData.video,
+        ...(videoUrl || productData.video ? { video: videoUrl || productData.video } : {}),
+        ...(codigoPostagem ? { codigoPostagem } : {}),
         updatedAt: serverTimestamp(),
         createdBy: user?.email || "unknown",
       }
@@ -157,7 +196,7 @@ export function ProductsTab() {
 
         toast({
           title: "Produto criado",
-          description: "O produto foi criado com sucesso",
+          description: `Produto criado com código: ${codigoPostagem}`,
         })
       }
 

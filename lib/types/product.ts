@@ -19,6 +19,7 @@ export interface Product {
   garantia?: string // Warranty (e.g., "90 dias")
   characteristics: Record<string, any>
   atributos_especificos?: Record<string, any> // Category-specific attributes
+  codigoPostagem?: string // Numeric code for social media posting (8 digits)
   published: boolean
   active: boolean
   stock: number

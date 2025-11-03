@@ -3,8 +3,9 @@
 import type { Product } from "@/lib/types/product"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Edit, Trash2, Eye, EyeOff, Power, PowerOff, Plus, Minus } from "lucide-react"
+import { Edit, Trash2, Eye, EyeOff, Power, PowerOff, Plus, Minus, Copy, Check } from "lucide-react"
 import Image from "next/image"
+import { useState } from "react"
 
 interface ProductListProps {
   products: Product[]
@@ -23,6 +24,14 @@ export function ProductList({
   onToggleActive,
   onUpdateStock,
 }: ProductListProps) {
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  const handleCopyCode = async (code: string, productId: string) => {
+    await navigator.clipboard.writeText(code)
+    setCopiedId(productId)
+    setTimeout(() => setCopiedId(null), 2000)
+  }
+
   if (products.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -56,6 +65,11 @@ export function ProductList({
                 <div className="flex items-center gap-2 mt-1">
                   <Badge className="bg-primary text-primary-foreground">{product.store}</Badge>
                   <span className="text-sm text-muted-foreground">{product.category}</span>
+                  {product.codigoPostagem && (
+                    <Badge variant="outline" className="font-mono border-primary/20">
+                      #{product.codigoPostagem}
+                    </Badge>
+                  )}
                 </div>
               </div>
               <p className="text-lg font-bold text-primary whitespace-nowrap">R$ {product.price.toFixed(2)}</p>
@@ -74,6 +88,18 @@ export function ProductList({
 
             {/* Actions */}
             <div className="flex flex-wrap gap-2">
+              {product.codigoPostagem && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-primary/20 bg-transparent"
+                  onClick={() => handleCopyCode(product.codigoPostagem!, product.id)}
+                >
+                  {copiedId === product.id ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
+                  Copiar Código
+                </Button>
+              )}
+
               <Button
                 size="sm"
                 variant="outline"

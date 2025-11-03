@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useLanguage } from "@/lib/contexts/language-context"
-import { Upload, X, HelpCircle } from "lucide-react"
+import { Upload, X, HelpCircle, Copy, Check } from "lucide-react"
 
 interface ProductFormProps {
   product: Product | null
@@ -36,6 +36,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     active: true,
     stock: 0,
     images: [],
+    codigoPostagem: "", // Assuming this field exists in Product type
   })
 
   const [priceInput, setPriceInput] = useState("")
@@ -46,6 +47,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [copiedCode, setCopiedCode] = useState(false)
 
   const imageDropRef = useRef<HTMLDivElement>(null)
   const videoDropRef = useRef<HTMLDivElement>(null)
@@ -223,8 +225,40 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     }
   }
 
+  const handleCopyCode = async () => {
+    if (formData.codigoPostagem) {
+      await navigator.clipboard.writeText(formData.codigoPostagem)
+      setCopiedCode(true)
+      setTimeout(() => setCopiedCode(false), 2000)
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Posting Code Display Section */}
+      {product?.codigoPostagem && (
+        <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-foreground font-semibold">Código de Postagem</Label>
+              <p className="text-sm text-muted-foreground mt-1">Use este código para divulgar nas redes sociais</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold text-primary font-mono">{product.codigoPostagem}</span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="border-primary/20 bg-transparent"
+                onClick={handleCopyCode}
+              >
+                {copiedCode ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Basic Fields */}
       <div className="grid md:grid-cols-2 gap-4">
         <div className="space-y-2">
