@@ -21,6 +21,7 @@ import { ProductForm } from "./product-form"
 import { ProductList } from "./product-list"
 import { Plus } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { uploadMultipleImagesToCloudinary, uploadVideoToCloudinary } from "@/lib/utils/cloudinary"
 
 export function ProductsTab() {
   const [products, setProducts] = useState<Product[]>([])
@@ -55,61 +56,18 @@ export function ProductsTab() {
     }
   }
 
-  const convertImageToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      // Limit to 2MB per image for products (larger than config because products need quality)
-      if (file.size > 2 * 1024 * 1024) {
-        reject(new Error(`Imagem "${file.name}" muito grande. Máximo 2MB por imagem.`))
-        return
-      }
-
-      if (!file.type.startsWith("image/")) {
-        reject(new Error(`Arquivo "${file.name}" deve ser uma imagem.`))
-        return
-      }
-
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result as string)
-      reader.onerror = () => reject(new Error(`Erro ao ler arquivo "${file.name}".`))
-      reader.readAsDataURL(file)
-    })
-  }
-
-  const convertVideoToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      // Limit to 5MB for videos
-      if (file.size > 5 * 1024 * 1024) {
-        reject(new Error(`Vídeo "${file.name}" muito grande. Máximo 5MB.`))
-        return
-      }
-
-      if (!file.type.startsWith("video/")) {
-        reject(new Error(`Arquivo "${file.name}" deve ser um vídeo.`))
-        return
-      }
-
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result as string)
-      reader.onerror = () => reject(new Error(`Erro ao ler vídeo "${file.name}".`))
-      reader.readAsDataURL(file)
-    })
-  }
-
   const generatePostingCode = async (): Promise<string> => {
-    // Generate 8-digit code: timestamp (6 digits) + random (2 digits)
     const timestamp = Date.now().toString().slice(-6)
     const random = Math.floor(Math.random() * 100)
       .toString()
       .padStart(2, "0")
     const code = timestamp + random
 
-    // Verify uniqueness (very unlikely to collide, but safe)
     const productsRef = collection(db, "products")
     const q = query(productsRef, where("codigoPostagem", "==", code))
     const snapshot = await getDocs(q)
 
     if (!snapshot.empty) {
-      // If collision (extremely rare), generate again
       return generatePostingCode()
     }
 
@@ -123,34 +81,28 @@ export function ProductsTab() {
     console.log("[v0] Video:", video ? "yes" : "no")
 
     try {
-      const imageUrls: string[] = []
+      let imageUrls: string[] = []
 
       if (images.length > 0) {
-        console.log("[v0] Converting images to Base64...")
-        for (let i = 0; i < images.length; i++) {
-          const image = images[i]
-          console.log(`[v0] Converting image ${i + 1}/${images.length}: ${image.name}`)
-
-          try {
-            const base64 = await convertImageToBase64(image)
-            imageUrls.push(base64)
-            console.log(`[v0] Image ${i + 1} converted successfully`)
-          } catch (conversionError: any) {
-            console.error(`[v0] Error converting image ${i + 1}:`, conversionError)
-            throw new Error(conversionError.message)
-          }
+        console.log("[v0] Uploading images to Cloudinary...")
+        try {
+          imageUrls = await uploadMultipleImagesToCloudinary(images)
+          console.log(`[v0] ${imageUrls.length} images uploaded successfully`)
+        } catch (uploadError: any) {
+          console.error("[v0] Error uploading images:", uploadError)
+          throw new Error(uploadError.message || "Erro ao fazer upload das imagens")
         }
       }
 
       let videoUrl: string | undefined
       if (video) {
-        console.log("[v0] Converting video to Base64...")
+        console.log("[v0] Uploading video to Cloudinary...")
         try {
-          videoUrl = await convertVideoToBase64(video)
-          console.log("[v0] Video converted successfully")
-        } catch (conversionError: any) {
-          console.error("[v0] Error converting video:", conversionError)
-          throw new Error(conversionError.message)
+          videoUrl = await uploadVideoToCloudinary(video)
+          console.log("[v0] Video uploaded successfully")
+        } catch (uploadError: any) {
+          console.error("[v0] Error uploading video:", uploadError)
+          throw new Error(uploadError.message || "Erro ao fazer upload do vídeo")
         }
       }
 
@@ -161,7 +113,6 @@ export function ProductsTab() {
         console.log("[v0] Generated posting code:", codigoPostagem)
       }
 
-      // Prepare product payload
       const productPayload = {
         ...productData,
         images: imageUrls.length > 0 ? imageUrls : productData.images || [],
@@ -171,10 +122,9 @@ export function ProductsTab() {
         createdBy: user?.email || "unknown",
       }
 
-      console.log("[v0] Final payload prepared (images as Base64)")
+      console.log("[v0] Final payload prepared (images as Cloudinary URLs)")
 
       if (editingProduct) {
-        // Update existing product
         console.log("[v0] Updating product:", editingProduct.id)
         await updateDoc(doc(db, "products", editingProduct.id), productPayload)
         console.log("[v0] Product updated successfully")
@@ -184,7 +134,6 @@ export function ProductsTab() {
           description: "O produto foi atualizado com sucesso",
         })
       } else {
-        // Create new product
         console.log("[v0] Creating new product...")
         const docRef = await addDoc(collection(db, "products"), {
           ...productPayload,
@@ -200,7 +149,6 @@ export function ProductsTab() {
         })
       }
 
-      // Reset form and refresh list
       setShowForm(false)
       setEditingProduct(null)
       await fetchProducts()

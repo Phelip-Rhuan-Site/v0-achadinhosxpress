@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge"
 import { Edit, Trash2, Eye, EyeOff, Power, PowerOff, Plus, Minus, Copy, Check } from "lucide-react"
 import Image from "next/image"
 import { useState } from "react"
+import { formatPrice } from "@/lib/utils/format-price"
+import { useLanguage } from "@/lib/contexts/language-context"
 
 interface ProductListProps {
   products: Product[]
@@ -25,6 +27,7 @@ export function ProductList({
   onUpdateStock,
 }: ProductListProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const { language } = useLanguage()
 
   const handleCopyCode = async (code: string, productId: string) => {
     await navigator.clipboard.writeText(code)
@@ -72,7 +75,7 @@ export function ProductList({
                   )}
                 </div>
               </div>
-              <p className="text-lg font-bold text-primary whitespace-nowrap">R$ {product.price.toFixed(2)}</p>
+              <p className="text-lg font-bold text-primary whitespace-nowrap">{formatPrice(product.price, language)}</p>
             </div>
 
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">

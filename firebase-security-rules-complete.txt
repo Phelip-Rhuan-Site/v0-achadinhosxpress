@@ -16,9 +16,12 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == userId;
     }
 
-    // Produtos: leitura pública, escrita só admin
+    // Produtos: leitura pública, escrita só admin, mas qualquer um pode incrementar views
     match /products/{productId} {
       allow read: if true;
+      // Allow anyone to update ONLY the views field
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views']);
+      // Admin can do everything
       allow create, update, delete: if isAdmin();
     }
 

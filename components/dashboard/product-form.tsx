@@ -67,8 +67,43 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
 
   const parsePrice = (value: string): number => {
     if (!value) return 0
-    const normalized = value.replace(",", ".")
-    return Number.parseFloat(normalized) || 0
+
+    // Remove all spaces
+    let cleaned = value.trim().replace(/\s/g, "")
+
+    // Count dots and commas to determine format
+    const dotCount = (cleaned.match(/\./g) || []).length
+    const commaCount = (cleaned.match(/,/g) || []).length
+
+    if (dotCount > 0 && commaCount > 0) {
+      // Mixed format: determine which is decimal separator
+      const lastDot = cleaned.lastIndexOf(".")
+      const lastComma = cleaned.lastIndexOf(",")
+
+      if (lastComma > lastDot) {
+        // European format: "1.234,56" → "1234.56"
+        cleaned = cleaned.replace(/\./g, "").replace(",", ".")
+      } else {
+        // US format: "1,234.56" → "1234.56"
+        cleaned = cleaned.replace(/,/g, "")
+      }
+    } else if (commaCount > 0) {
+      // Only commas: could be "7214,30" (decimal) or "1,234" (thousands)
+      if (commaCount === 1 && cleaned.split(",")[1]?.length === 2) {
+        // Decimal comma: "7214,30" → "7214.30"
+        cleaned = cleaned.replace(",", ".")
+      } else {
+        // Thousands separator: "1,234" → "1234"
+        cleaned = cleaned.replace(/,/g, "")
+      }
+    }
+    // If only dots, assume US format (already correct)
+
+    const parsed = Number.parseFloat(cleaned)
+
+    console.log("[v0] parsePrice:", { input: value, cleaned, parsed })
+
+    return isNaN(parsed) ? 0 : parsed
   }
 
   const handleInputChange = (field: string, value: any) => {

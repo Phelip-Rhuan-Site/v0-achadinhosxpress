@@ -11,6 +11,7 @@ import { useLanguage } from "@/lib/contexts/language-context"
 import type { Product } from "@/lib/types/product"
 import { ShoppingCart, ExternalLink } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { formatPrice } from "@/lib/utils/format-price"
 
 interface ProductCardProps {
   product: Product
@@ -21,7 +22,7 @@ interface ProductCardProps {
 export function ProductCard({ product, onAddToCart, onViewOffer }: ProductCardProps) {
   const [imageError, setImageError] = useState(false)
   const { toast } = useToast()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -43,12 +44,12 @@ export function ProductCard({ product, onAddToCart, onViewOffer }: ProductCardPr
 
   return (
     <Card
-      className="group cursor-pointer overflow-hidden border-primary/20 bg-card/50 backdrop-blur hover:border-primary/40 transition-all hover:shadow-lg hover:shadow-primary/10"
+      className="group cursor-pointer overflow-hidden border-primary/20 bg-card/50 backdrop-blur hover:border-primary/40 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10 hover:scale-[1.02]"
       onClick={handleCardClick}
     >
       <CardContent className="p-0">
         {/* Image Container - Square with contain */}
-        <div className="relative w-full aspect-square bg-background/50">
+        <div className="relative w-full aspect-square bg-background/50 overflow-hidden">
           <Image
             src={
               imageError
@@ -57,7 +58,7 @@ export function ProductCard({ product, onAddToCart, onViewOffer }: ProductCardPr
             }
             alt={product.name}
             fill
-            className="object-contain p-2"
+            className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"
             onError={() => setImageError(true)}
             loading="lazy"
           />
@@ -71,14 +72,14 @@ export function ProductCard({ product, onAddToCart, onViewOffer }: ProductCardPr
             {product.name}
           </h3>
 
-          <p className="text-lg font-bold text-primary">R$ {product.price.toFixed(2)}</p>
+          <p className="text-lg font-bold text-primary">{formatPrice(product.price, language)}</p>
 
           {/* Action Buttons */}
           <div className="flex flex-col gap-2">
             <Button
               size="sm"
               variant="outline"
-              className="w-full border-primary/20 text-foreground hover:bg-primary/10 hover:text-primary bg-transparent"
+              className="w-full border-primary/20 text-foreground hover:bg-primary/10 hover:text-primary bg-transparent transition-all hover:scale-[1.02]"
               onClick={handleViewOffer}
             >
               <ExternalLink className="mr-2 h-4 w-4" />
@@ -86,7 +87,7 @@ export function ProductCard({ product, onAddToCart, onViewOffer }: ProductCardPr
             </Button>
             <Button
               size="sm"
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 transition-all hover:scale-[1.02]"
               onClick={handleAddToCart}
             >
               <ShoppingCart className="mr-2 h-4 w-4" />

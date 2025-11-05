@@ -9,10 +9,11 @@ import { useLanguage } from "@/lib/contexts/language-context"
 import Image from "next/image"
 import { Trash2, Plus, Minus, ExternalLink, ShoppingBag } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { formatPrice } from "@/lib/utils/format-price"
 
 export default function CartPage() {
   const { cart, updateQuantity, removeFromCart, clearCart, clearCartByStore, getCartTotal, getCartByStore } = useCart()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const router = useRouter()
   const cartByStore = getCartByStore()
   const stores = Object.keys(cartByStore)
@@ -101,7 +102,9 @@ export default function CartPage() {
                       {/* Product Info */}
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-foreground line-clamp-2 mb-2">{item.product.name}</h3>
-                        <p className="text-lg font-bold text-primary mb-3">R$ {item.product.price.toFixed(2)}</p>
+                        <p className="text-lg font-bold text-primary mb-3">
+                          {formatPrice(item.product.price, language)}
+                        </p>
 
                         <div className="flex items-center gap-4">
                           {/* Quantity Controls */}
@@ -157,7 +160,7 @@ export default function CartPage() {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between text-2xl font-bold">
                   <span className="text-foreground">{t("cart.total")}</span>
-                  <span className="text-primary">R$ {getCartTotal().toFixed(2)}</span>
+                  <span className="text-primary">{formatPrice(getCartTotal(), language)}</span>
                 </div>
               </CardContent>
             </Card>
